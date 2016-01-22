@@ -1,4 +1,7 @@
 from string import ascii_lowercase
+from random import randint
+from ngram_score import ngram_score
+
 
 # obtained from wikipedia
 englishExpectedFrequencies = {
@@ -43,6 +46,17 @@ def encrypt(toEncrypt, key):
         result += chr(possibleResultLetter)
     return result
 
+def decrypt(inputText,key):
+    result = ""
+    key = key.upper()
+    inputText = inputText.upper()
+    for i in range(0, len(inputText)):
+        indexInKey = i % len(key)
+        possibleResultLetter = ord(inputText[i]) - ord(key[indexInKey]) + 65
+        if possibleResultLetter < 64:
+            possibleResultLetter += 26
+        result += chr(possibleResultLetter)
+    return result
 
 def decryptFirstStage(toDecrypt):
     toDecrypt = toDecrypt.lower()
@@ -161,12 +175,58 @@ def rotationNumberToCharacter(number):
     return chr(number+97)
 
 
+def decryptUsingQuadgramLocalSearch(inputText, keyLength):
+    inputText = "".join(inputText.lower().split())
+    key = initializeRandomKey(keyLength)
+    print "INITIAL KEY: ", key
+    ngram = ngram_score("english_quadgrams.txt")
+    fitness = ngram.score(decrypt(inputText,key))
+    print "INITIAL FITNESS: ", fitness
+    improvement = True
+    indexOfKeyToModify = 0
+    while improvement == True:
+        bestFitness = float("-inf")
+        bestKey = ""
+        childrenKeys = computeChildren(key,indexOfKeyToModify)
+        indexOfKeyToModify = (indexOfKeyToModify + 1) % keyLength
+        for childKey in childrenKeys:
+            childScore = ngram.score(decrypt(inputText,childKey))
+            if childScore > bestFitness:
+                bestFitness = childScore
+                bestKey = childKey
+        if bestFitness <= fitness:
+            improvement = False
+        else:
+            fitness = bestFitness
+            key = bestKey
+            print fitness, key
+    print key
+
+
+def computeChildren(keyString,indexToModify):
+    children = []
+    for letter in ascii_lowercase:
+        child = list(keyString)
+        child[indexToModify] = letter
+        children.append("".join(child))
+    return children
+
+def initializeRandomKey(keyLength):
+    toReturn = ""
+    for i in range(keyLength):
+        toReturn += chr(97+randint(0,25))
+    return toReturn
+
+
+
+
 if __name__ == "__main__":
     print encrypt('goodchocolatetastesgoodandbadchocholatetastesbad', 'zhao')
     # decryptFirstStage(
     #         'vptnvffuntshtarptymjwzirappljmhhqvsubwlzzygvtyitarptyiougxiuydtgzhhvvmumshwkzgstfmekvmpkswdgbilvjljmglmjfqwioiivknulvvfemioiemojtywdsajtwmtcgluysdsumfbieugmvalvxkjduetukatymvkqzhvqvgvptytjwwldyeevquhlulwpkt')
     # decryptSecondStage('vptnvffuntshtarptymjwzirappljmhhqvsubwlzzygvtyitarptyiougxiuydtgzhhvvmumshwkzgstfmekvmpkswdgbilvjljmglmjfqwioiivknulvvfemioiemojtywdsajtwmtcgluysdsumfbieugmvalvxkjduetukatymvkqzhvqvgvptytjwwldyeevquhlulwpkt',7)
 
-
     decryptFirstStage('FVORBOOQNSAHDAAGSLSUNVDOMKBOCJHCBOOZZAEHZZTSRIAR')
     decryptSecondStage('FVORBOOQNSAHDAAGSLSUNVDOMKBOCJHCBOOZZAEHZZTSRIAR',4)
+
+    decryptUsingQuadgramLocalSearch('FVORBOOQNSAHDAAGSLSUNVDOMKBOCJHCBOOZZAEHZZTSRIAR',4)
